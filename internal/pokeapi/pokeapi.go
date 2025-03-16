@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/simonlewi/pokedexcli/internal/pokecache"
 )
 
 // Client is a PokeAPI client
@@ -19,11 +21,24 @@ func NewClient() *Client {
 }
 
 // ListLocationAreas fetches a paginated list of location areas
-func (c *Client) ListLocationAreas(url string) (LocationAreaResponse, error) {
+func (c *Client) ListLocationAreas(url string, cache *pokecache.Cache) (LocationAreaResponse, error) {
 	if url == "" {
 		url = "https://pokeapi.co/api/v2/location-area"
 	}
 
+	if cachedData, found := cache.Get(url); found {
+		fmt.Println("Cache hit!")
+
+		var locationsResp LocationAreaResponse
+		err := json.Unmarshal(cachedData, &locationsResp)
+		if err != nil {
+			return LocationAreaResponse{}, err
+		}
+
+		return locationsResp, nil
+	}
+
+	fmt.Println("Cache miss! Fetching from API...")
 	resp, err := http.Get(url)
 	if err != nil {
 		return LocationAreaResponse{}, err
@@ -34,6 +49,8 @@ func (c *Client) ListLocationAreas(url string) (LocationAreaResponse, error) {
 	if err != nil {
 		return LocationAreaResponse{}, err
 	}
+
+	cache.Add(url, body)
 
 	var locationsResp LocationAreaResponse
 	err = json.Unmarshal(body, &locationsResp)

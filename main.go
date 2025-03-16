@@ -5,14 +5,17 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/simonlewi/pokedexcli/internal/pokeapi"
+	"github.com/simonlewi/pokedexcli/internal/pokecache"
 )
 
 func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	config := &Config{
 		PokeClient: pokeapi.NewClient(),
+		Cache:      pokecache.NewCache(5 * time.Minute),
 	}
 
 	commands := map[string]cliCommand{
@@ -92,7 +95,7 @@ func commandHelp(commands map[string]cliCommand) func(*Config) error {
 }
 
 func commandMap(config *Config) error {
-	resp, err := config.PokeClient.ListLocationAreas(config.NextURL)
+	resp, err := config.PokeClient.ListLocationAreas(config.NextURL, config.Cache)
 	if err != nil {
 		return err
 	}
@@ -111,7 +114,7 @@ func commandMapBack(config *Config) error {
 		return nil
 	}
 
-	resp, err := config.PokeClient.ListLocationAreas(*config.PreviousURL)
+	resp, err := config.PokeClient.ListLocationAreas(*config.PreviousURL, config.Cache)
 	if err != nil {
 		return err
 	}
@@ -130,6 +133,7 @@ type Config struct {
 	NextURL     string
 	PreviousURL *string
 	PokeClient  *pokeapi.Client
+	Cache       *pokecache.Cache
 }
 
 type cliCommand struct {

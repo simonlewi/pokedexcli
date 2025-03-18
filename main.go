@@ -34,6 +34,11 @@ func main() {
 			description: "Display the previous map",
 			callback:    commandMapBack,
 		},
+		"explore": {
+			name:        "explore",
+			description: "Explore the current area",
+			callback:    commandExplore,
+		},
 	}
 
 	commands["help"] = cliCommand{
@@ -55,7 +60,11 @@ func main() {
 
 		command := words[0]
 		if cmd, exists := commands[command]; exists {
-			err := cmd.callback(config)
+			args := []string{}
+			if len(words) > 1 {
+				args = words[1:]
+			}
+			err := cmd.callback(config, args)
 			if err != nil {
 				fmt.Println("Error: ", err)
 			}
@@ -76,14 +85,14 @@ func cleanInput(text string) []string {
 
 }
 
-func commandExit(config *Config) error {
+func commandExit(config *Config, args []string) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandHelp(commands map[string]cliCommand) func(*Config) error {
-	return func(config *Config) error {
+func commandHelp(commands map[string]cliCommand) func(*Config, []string) error {
+	return func(config *Config, args []string) error {
 		fmt.Println("Welcome to the Pokedex!")
 		fmt.Println("Usage:")
 		fmt.Println()
@@ -94,7 +103,7 @@ func commandHelp(commands map[string]cliCommand) func(*Config) error {
 	}
 }
 
-func commandMap(config *Config) error {
+func commandMap(config *Config, args []string) error {
 	resp, err := config.PokeClient.ListLocationAreas(config.NextURL, config.Cache)
 	if err != nil {
 		return err
@@ -108,7 +117,7 @@ func commandMap(config *Config) error {
 	return nil
 }
 
-func commandMapBack(config *Config) error {
+func commandMapBack(config *Config, args []string) error {
 	if config.PreviousURL == nil {
 		fmt.Println("You're on the first page")
 		return nil
@@ -129,6 +138,26 @@ func commandMapBack(config *Config) error {
 	return nil
 }
 
+func commandExplore(config *Config, args []string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("you must provide a location area name")
+	}
+	locationArea := args[0]
+
+	// Call the API to get location area details
+	locationInfo, err := config.PokeClient.GetLocationArea(locationArea, config.Cache)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Exploring %s...\n", locationArea)
+	fmt.Println("Found Pokemon")
+	for _, encounter := range locationInfo.PokemonEncounters {
+		fmt.Printf(" - %s\n", encounter.Pokemon.Name)
+	}
+	return nil
+}
+
 type Config struct {
 	NextURL     string
 	PreviousURL *string
@@ -139,5 +168,5 @@ type Config struct {
 type cliCommand struct {
 	name        string
 	description string
-	callback    func(*Config) error
+	callback    func(*Config, []string) error
 }

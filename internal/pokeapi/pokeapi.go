@@ -67,3 +67,39 @@ func PrintLocationAreas(resp LocationAreaResponse) {
 		fmt.Println(location.Name)
 	}
 }
+
+func (c *Client) GetLocationArea(name string, cache *pokecache.Cache) (*LocationArea, error) {
+	url := fmt.Sprintf("https://pokeapi.co/api/v2/location-area/%s", name)
+
+	if cachedData, found := cache.Get(url); found {
+		fmt.Println("Cache hit!")
+		var locationArea LocationArea
+		err := json.Unmarshal(cachedData, &locationArea)
+		if err != nil {
+			return nil, err
+		}
+		return &locationArea, nil
+	}
+
+	fmt.Println("Cache miss! Fetching from API...")
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	cache.Add(url, body)
+
+	var locationArea LocationArea
+	err = json.Unmarshal(body, &locationArea)
+	if err != nil {
+		return nil, err
+	}
+
+	return &locationArea, nil
+}

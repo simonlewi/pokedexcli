@@ -20,7 +20,7 @@ func main() {
 		Cache:         pokecache.NewCache(5 * time.Minute),
 		CaughtPokemon: make(map[string]Pokemon),
 	}
-
+	// CLI commands
 	commands := map[string]cliCommand{
 		"exit": {
 			name:        "exit",
@@ -52,8 +52,14 @@ func main() {
 			description: "Inspect a caught Pokemon",
 			callback:    commandInspect,
 		},
+		"pokedex": {
+			name:        "pokedex",
+			description: "List all caught Pokemon",
+			callback:    commandPokedex,
+		},
 	}
 
+	// Help command outside commands scope to prevent circular reference. It needs access to commands map itself
 	commands["help"] = cliCommand{
 		name:        "help",
 		description: "Displays a help message",
@@ -116,6 +122,7 @@ func commandHelp(commands map[string]cliCommand) func(*Config, []string) error {
 	}
 }
 
+// Bring up the map of areas and navigate forward
 func commandMap(config *Config, args []string) error {
 	resp, err := config.PokeClient.ListLocationAreas(config.NextURL, config.Cache)
 	if err != nil {
@@ -130,6 +137,7 @@ func commandMap(config *Config, args []string) error {
 	return nil
 }
 
+// Navigate backwards in the maps
 func commandMapBack(config *Config, args []string) error {
 	if config.PreviousURL == nil {
 		fmt.Println("You're on the first page")
@@ -151,6 +159,7 @@ func commandMapBack(config *Config, args []string) error {
 	return nil
 }
 
+// Explore the current areas Pokemon inhabitants
 func commandExplore(config *Config, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("you must provide a location area name")
@@ -171,6 +180,7 @@ func commandExplore(config *Config, args []string) error {
 	return nil
 }
 
+// Catch Pokemon
 func commandCatch(config *Config, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("you must provide a pokemon name")
@@ -230,6 +240,7 @@ func commandCatch(config *Config, args []string) error {
 	return nil
 }
 
+// Inspect Pokemon
 func commandInspect(config *Config, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("you must provide a pokemon name")
@@ -257,6 +268,19 @@ func commandInspect(config *Config, args []string) error {
 	return nil
 }
 
+func commandPokedex(config *Config, args []string) error {
+	if len(config.CaughtPokemon) == 0 {
+		fmt.Println("Your Pokedex is empty!")
+		return nil
+	}
+
+	fmt.Println("Your Pokedex:")
+	for name := range config.CaughtPokemon {
+		fmt.Printf("  - %s\n", name)
+	}
+	return nil
+}
+
 type Pokemon struct {
 	Name           string
 	BaseExperience int
@@ -271,6 +295,7 @@ type Stat struct {
 	Value int
 }
 
+// Pokemon Type
 type Type struct {
 	Name string
 }

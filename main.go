@@ -47,6 +47,11 @@ func main() {
 			description: "Catch Pokemon",
 			callback:    commandCatch,
 		},
+		"inspect": {
+			name:        "inspect",
+			description: "Inspect a caught Pokemon",
+			callback:    commandInspect,
+		},
 	}
 
 	commands["help"] = cliCommand{
@@ -192,9 +197,31 @@ func commandCatch(config *Config, args []string) error {
 	// If random number is less than catch chance, catch succeeded
 	if r < catchChance {
 		fmt.Printf("%s was caught!\n", pokemonName)
+
+		// Convert API stats to our internal format
+		stats := make([]Stat, len(pokemon.Stats))
+		for i, stat := range pokemon.Stats {
+			stats[i] = Stat{
+				Name:  stat.Stat.Name,
+				Value: stat.BaseStat,
+			}
+		}
+
+		// Convert API types to our internal format
+		types := make([]Type, len(pokemon.Types))
+		for i, t := range pokemon.Types {
+			types[i] = Type{
+				Name: t.Type.Name,
+			}
+		}
+
 		config.CaughtPokemon[pokemonName] = Pokemon{
 			Name:           pokemonName,
 			BaseExperience: pokemon.BaseExperience,
+			Height:         pokemon.Height,
+			Weight:         pokemon.Weight,
+			Stats:          stats,
+			Types:          types,
 		}
 		return nil
 	}
@@ -203,9 +230,49 @@ func commandCatch(config *Config, args []string) error {
 	return nil
 }
 
+func commandInspect(config *Config, args []string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("you must provide a pokemon name")
+	}
+	pokemonName := args[0]
+
+	pokemon, ok := config.CaughtPokemon[pokemonName]
+	if !ok {
+		return fmt.Errorf("you have not caught that pokemon yet")
+	}
+
+	fmt.Printf("Name: %s\n", pokemon.Name)
+	fmt.Printf("Base Experience: %d\n", pokemon.BaseExperience)
+	fmt.Printf("Height: %d\n", pokemon.Height)
+	fmt.Printf("Weight: %d\n", pokemon.Weight)
+	fmt.Printf("Stats:\n")
+	for _, stat := range pokemon.Stats {
+		fmt.Printf("  -%s: %d\n", stat.Name, stat.Value)
+	}
+	fmt.Printf("Types:\n")
+	for _, t := range pokemon.Types {
+		fmt.Printf("  - %s\n", t.Name)
+	}
+
+	return nil
+}
+
 type Pokemon struct {
 	Name           string
 	BaseExperience int
+	Height         int
+	Weight         int
+	Stats          []Stat
+	Types          []Type
+}
+
+type Stat struct {
+	Name  string
+	Value int
+}
+
+type Type struct {
+	Name string
 }
 
 type Config struct {

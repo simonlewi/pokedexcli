@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"math/rand"
 	"os"
 	"strings"
 	"time"
@@ -12,10 +13,12 @@ import (
 )
 
 func main() {
+	rand.New(rand.NewSource(time.Now().UnixNano()))
 	scanner := bufio.NewScanner(os.Stdin)
 	config := &Config{
-		PokeClient: pokeapi.NewClient(),
-		Cache:      pokecache.NewCache(5 * time.Minute),
+		PokeClient:    pokeapi.NewClient(),
+		Cache:         pokecache.NewCache(5 * time.Minute),
+		CaughtPokemon: make(map[string]Pokemon),
 	}
 
 	commands := map[string]cliCommand{
@@ -38,6 +41,11 @@ func main() {
 			name:        "explore",
 			description: "Explore the current area",
 			callback:    commandExplore,
+		},
+		"catch": {
+			name:        "catch",
+			description: "Catch Pokemon",
+			callback:    commandCatch,
 		},
 	}
 
@@ -158,11 +166,54 @@ func commandExplore(config *Config, args []string) error {
 	return nil
 }
 
+func commandCatch(config *Config, args []string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("you must provide a pokemon name")
+	}
+	pokemonName := args[0]
+
+	// Get Pokemon info from API
+	pokemon, err := config.PokeClient.GetPokemon(pokemonName, config.Cache)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Throwing a Pokeball at %s...\n", pokemonName)
+
+	// Calculate catch chance - higher base experience = lower chance
+	catchChance := 0.5 - float64(pokemon.BaseExperience)/1000.0 // Adjust to make catching easier or harder
+	if catchChance < 0.1 {
+		catchChance = 0.1 // Minimum 10% chance
+	}
+
+	// Random number between 0 - 1
+	r := rand.Float64()
+
+	// If random number is less than catch chance, catch succeeded
+	if r < catchChance {
+		fmt.Printf("%s was caught!\n", pokemonName)
+		config.CaughtPokemon[pokemonName] = Pokemon{
+			Name:           pokemonName,
+			BaseExperience: pokemon.BaseExperience,
+		}
+		return nil
+	}
+
+	fmt.Printf("%s escaped!\n", pokemonName)
+	return nil
+}
+
+type Pokemon struct {
+	Name           string
+	BaseExperience int
+}
+
 type Config struct {
-	NextURL     string
-	PreviousURL *string
-	PokeClient  *pokeapi.Client
-	Cache       *pokecache.Cache
+	NextURL       string
+	PreviousURL   *string
+	PokeClient    *pokeapi.Client
+	Cache         *pokecache.Cache
+	CaughtPokemon map[string]Pokemon
 }
 
 type cliCommand struct {

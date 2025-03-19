@@ -103,3 +103,32 @@ func (c *Client) GetLocationArea(name string, cache *pokecache.Cache) (*Location
 
 	return &locationArea, nil
 }
+
+func (c *Client) GetPokemon(name string, cache *pokecache.Cache) (*PokemonResponse, error) {
+	url := fmt.Sprintf("https://pokeapi.co/api/v2/pokemon/%s", name)
+
+	if cachedData, found := cache.Get(url); found {
+		fmt.Println("Cache hit!")
+		var pokemon PokemonResponse
+		err := json.Unmarshal(cachedData, &pokemon)
+		return &pokemon, err
+	}
+
+	fmt.Println("Cache miss! Fetching from API...")
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	cache.Add(url, body)
+
+	var pokemon PokemonResponse
+	err = json.Unmarshal(body, &pokemon)
+	return &pokemon, err
+}

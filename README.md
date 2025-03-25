@@ -1,4 +1,4 @@
-A fun CLI game using the official Pokemon API
+A fun CLI game using the official Pokémon API
 
 --------------------------------------------
 
